@@ -1,0 +1,124 @@
+ShinyApp: BJS Crime Statistics
+========================================================
+author: P. Lam
+date: Janurary 3, 2017
+
+Bureau of Justice Statistics: Victimization Rates
+========================================================
+
+This ShinyApp is designed to show the trend of crime victimization by cateogry
+
+- Data source: BJS, National Crime Victimization Survey (NCVS)
+- Available from 1993 to 2015 
+- Information on NCVS can be found on the [this page](http://www.bjs.gov/index.cfm?ty=dcdetail&iid=245)
+
+
+Reading the BJS Statistics
+========================================================
+
+```{r, include=FALSE}
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+source("global.R")
+```
+
+This Shiny App uses statistics from the Bureau of Justice Statistics:
+```{r}
+bjscrimedata <- read.csv("bjscrimedata.csv", header=TRUE) 
+str(bjscrimedata)
+```
+
+ShinyApp Function - Crime Statisitcs
+========================================================
+
+This ShinyApp allows users to select one of the crime victimiation categories to: 
+
+- display the Plotly chart that shows the victimiation rate from 1993-2015
+
+- display the summary statistics of the victimation rate
+
+```{r, include=FALSE}
+server <- shinyServer(function(input, output) {
+
+  datasetInput <- reactive({switch(input$crime, 
+                       "Serious Violent Victimization" = bjscrimedata$Violent.Victimization,
+                       "Rape/Sexual Assault" = bjscrimedata$Rape.Sexual.Assault,
+                       "Robbery Aggravated Assault" = bjscrimedata$Robbery,
+                       "Simple Assault" = bjscrimedata$Simple.Assault,
+                       "Personal Theft/Larceny" = bjscrimedata$Personal.Theft.Larceny)
+  })
+ 
+  merged_data <- reactive({data.frame(bjscrimedata$Year, datasetInput())
+  })
+  
+  output$text <- renderText({
+    paste(input$crime,": Victimization per 1,000 persons age 12 or older, 1993-2015")
+  })
+  
+  output$summary <- renderPrint({
+    dataset <- merged_data()
+    paste(input$crime, "Summary Statistics") 
+    summary(dataset$datasetInput)
+  })
+  
+  output$lineChart <- renderPlotly({
+    dataset <- merged_data()
+   p <- plot_ly(dataset, x = ~bjscrimedata.Year, y = ~datasetInput() , type = 'scatter', mode = 'lines') 
+   p <- layout(p, xaxis = list(           
+                 title = "Year",
+                 range = c(1992, 2017),
+                 titlefont = list(size=14),
+                 zeroline = TRUE
+               ),
+               yaxis = list(           
+                 title = "Victimization Rates",
+                 titlefont = list(size=14),
+                 ticks="outside",
+                 ticklen=3,
+                 zeroline = TRUE, 
+                 showline=TRUE
+               ), height=400, width=600)
+  })
+  
+})  
+
+shinyUI(sidebarLayout(
+  # Application title
+  titlePanel("Crime Victimization Rates from Bureau of Justice Statistics"),
+  
+  ui <- fluidPage(
+    sidebarPanel(
+      # Application title
+      titlePanel(h4("Crime Victimization Rates from Bureau of Justice Statistics")),
+      #Select Input
+      selectInput("crime", "Select a Category of Crime", choices = c("Serious Violent Victimization", 
+      "Rape/Sexual Assault", "Robbery Aggravated Assault","Simple Assault","Personal Theft/Larceny"))
+    ),
+    
+    # Show a plot of the generated distribution
+    mainPanel(
+      h3(textOutput("text")),
+      plotlyOutput("lineChart"),
+      h3(" "),
+      h5("Summary Statistics"),
+      verbatimTextOutput("summary")
+    )
+  )
+))
+
+```
+
+Plotly Charts for Crime Statistics
+========================================================
+
+The ShinyApp creates the Plotly chart for the selected crime category.
+
+```{r, eval=FALSE}
+shinyApp(ui = ui, server = server)
+```
+
+The interactive Plotly chart cannot be displayed on the slide but can be found on the Shiny Server [this page](https://dataplay.shinyapps.io/ShinyAppBJS/). Please click the link to see the Shiny App. 
+
+The R files for the app - app.R and global.R as well as the R Presenter markdown file - are available on GitHub [this page](https://github.com/dataplay/ShinyAppBJS)
